@@ -3,8 +3,8 @@ using GestionComercialFacturacion.Api.DTOs.Customers;
 using GestionComercialFacturacion.Api.Entities;
 using GestionComercialFacturacion.Api.Enums;
 using GestionComercialFacturacion.Api.Exceptions;
+using GestionComercialFacturacion.Api.Validators;
 using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
 
 namespace GestionComercialFacturacion.Api.Services;
 
@@ -21,7 +21,12 @@ public class ClienteService : IClienteService
 
     public async Task<ClienteResponse> CrearAsync(CrearClienteRequest request)
     {
-        ValidarCliente(request.Nombre, request.IdentificacionFiscal, request.CorreoElectronico);
+        var errores = ClienteValidator.Validar(request);
+
+        if (errores.Count > 0)
+        {
+            throw new ValidationAppException(errores);
+        }
 
         bool existeTaxId = await _context.Clientes
             .AnyAsync(x => x.IdentificacionFiscal == request.IdentificacionFiscal);
@@ -97,7 +102,12 @@ public class ClienteService : IClienteService
 
     public async Task<ClienteResponse> ActualizarAsync(int id, ActualizarClienteRequest request)
     {
-        ValidarCliente(request.Nombre, request.IdentificacionFiscal, request.CorreoElectronico);
+        var errores = ClienteValidator.Validar(request);
+
+        if (errores.Count > 0)
+        {
+            throw new ValidationAppException(errores);
+        }
 
         var cliente = await _context.Clientes
             .FirstOrDefaultAsync(x => x.Id == id);
@@ -152,35 +162,6 @@ public class ClienteService : IClienteService
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Cliente desactivado correctamente. ClienteId: {ClienteId}", cliente.Id);
-    }
-
-    private static void ValidarCliente(string nombre, string identificacionFiscal, string correoElectronico)
-    {
-        var errores = new List<string>();
-
-        if (string.IsNullOrWhiteSpace(nombre))
-        {
-            errores.Add("El nombre del cliente es obligatorio.");
-        }
-
-        if (string.IsNullOrWhiteSpace(identificacionFiscal))
-        {
-            errores.Add("El CIF/NIF es obligatorio.");
-        }
-
-        if (string.IsNullOrWhiteSpace(correoElectronico))
-        {
-            errores.Add("El email es obligatorio.");
-        }
-        else if (!new EmailAddressAttribute().IsValid(correoElectronico))
-        {
-            errores.Add("El email no tiene un formato válido.");
-        }
-
-        if (errores.Count > 0)
-        {
-            throw new ValidationAppException(errores);
-        }
     }
 
     private static ClienteResponse MapearCliente(Cliente cliente)

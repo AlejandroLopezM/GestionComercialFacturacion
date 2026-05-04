@@ -3,6 +3,7 @@ using GestionComercialFacturacion.Api.DTOs.Activities;
 using GestionComercialFacturacion.Api.Entities;
 using GestionComercialFacturacion.Api.Enums;
 using GestionComercialFacturacion.Api.Exceptions;
+using GestionComercialFacturacion.Api.Validators;
 using Microsoft.EntityFrameworkCore;
 
 namespace GestionComercialFacturacion.Api.Services;
@@ -20,7 +21,12 @@ public class ActividadService : IActividadService
 
     public async Task<ActividadResponse> CrearAsync(int oportunidadId, CrearActividadRequest request)
     {
-        ValidarActividad(request);
+        var errores = ActividadValidator.Validar(request);
+
+        if (errores.Count > 0)
+        {
+            throw new ValidationAppException(errores);
+        }
 
         var oportunidadExiste = await _context.Oportunidades
             .AnyAsync(x => x.Id == oportunidadId);
@@ -71,31 +77,6 @@ public class ActividadService : IActividadService
             .OrderByDescending(x => x.FechaActividad)
             .Select(x => MapearActividad(x))
             .ToListAsync();
-    }
-
-    private static void ValidarActividad(CrearActividadRequest request)
-    {
-        var errores = new List<string>();
-
-        if (string.IsNullOrWhiteSpace(request.Tipo))
-        {
-            errores.Add("El tipo de actividad es obligatorio.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Descripcion))
-        {
-            errores.Add("La descripción de la actividad es obligatoria.");
-        }
-
-        if (request.FechaActividad.Date > DateTime.UtcNow.Date)
-        {
-            errores.Add("La fecha de actividad no puede ser futura.");
-        }
-
-        if (errores.Count > 0)
-        {
-            throw new ValidationAppException(errores);
-        }
     }
 
     private static TipoActividadComercial ConvertirTipo(string tipo)
